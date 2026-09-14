@@ -34,6 +34,71 @@ async function enrichCourseTags(course: { id: string }) {
   return connections.map(cn => cn.tag)
 }
 
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params
+
+    const course = await prisma.course.findFirst({
+      where: { slug, hidden: false },
+      include: {
+        modules: {
+          orderBy: { order: 'asc' },
+          include: {
+            lessons: {
+              orderBy: { order: 'asc' },
+              include: {
+                progress: {
+                  where: { userId: 'local-user' },
+                  take: 1,
+                },
+                subtitles: {
+                  orderBy: { lang: 'asc' },
+                },
+              },
+            },
+          },
+        },
+        courseTags: {
+          include: { tag: true },
+          orderBy: { tag: { name: 'asc' } },
+        },
+      },
+    })
+
+    if (!course) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+    }
+
+    const allLessons = course.modules.flatMap(m => m.lessons)
+    const totalLessons = allLessons.length
+    const completedLessons = allLessons.filter(l => l.progress[0]?.completed).length
+    const percentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
+
+    const response = {
+      ...course,
+      tags: course.courseTags.map(cn => cn.tag),
+      modules: course.modules.map(m => ({
+        ...m,
+        lessons: m.lessons.map(l => ({
+          ...l,
+          progress: l.progress[0]
+            ? {
+                ...l.progress[0],
+                lastWatched: l.progress[0].lastWatched.toISOString(),
+              }
+            : null,
+        })),
+      })),
+      stats: { totalLessons, completedLessons, percentage },
+    }
+
+    return NextResponse.json(response)
+  } catch (error) {
+    console.error('Course GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch course' }, { status: 500 })
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params

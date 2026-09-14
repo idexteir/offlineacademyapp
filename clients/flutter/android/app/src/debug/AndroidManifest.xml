@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only override: allows cleartext HTTP traffic to LAN servers.
+
+  This file applies only to debug builds. Release builds use the default
+  Android network security policy which requires HTTPS.
+
+  Required because OfflineAcademy is typically accessed over LAN via:
+    http://<SERVER_IP>:6969
+    http://10.0.2.2:6969  (emulator)
+
+  For production use, connect through an HTTPS reverse proxy and this
+  override is not needed (release builds remain secure by default).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:usesCleartextTraffic="true"
+        tools:ignore="UnusedAttribute" />
+</manifest>
